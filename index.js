@@ -1,15 +1,17 @@
 // config
 
-const POLY_SIDES = 3
-const CHROMOSOMES = 200
-const CHROMOSOME_MUTATION_DELTA = 100
-const CHROMOSOME_COLOR_DELTA = 100
-const MUTATION_PROBABILITY = 3
+const POLY_SIDES = 3;
+const CHROMOSOMES = 200;
+const CHROMOSOME_MUTATION_DELTA = 100;
+const CHROMOSOME_COLOR_DELTA = 100;
+const MUTATION_PROBABILITY = 3;
+const INITIAL_COLOR = { r: 0, g: 0, b: 0, a: 0.3 };
 
 /* devuelve la URL de la imagen a copiar */
 
 function getRefImageUrl() {
-  return 'http://dantri4.vcmedia.vn/a3HWDOlTcvMNT73KRccc/Image/2013/11/42a-83e38.jpg';
+  return 'https://avatars3.githubusercontent.com/u/876570?v=3&s=460';
+  // return 'http://dantri4.vcmedia.vn/a3HWDOlTcvMNT73KRccc/Image/2013/11/42a-83e38.jpg';
 }
 
 /* genera un individuo aleatorio */
@@ -17,19 +19,21 @@ function getRefImageUrl() {
 function generateRandomIndividual(w, h) {
 	const individual = {
 		dna: {}
-	}
-	const color = { r: 0, g: 0, b: 0, a: 0.3 };
-	const sides = POLY_SIDES;
+	};
 	for (let i = 1; i <= CHROMOSOMES; i++) {
-		individual.dna[i] = {
-			color,
-			sides,
-			0: randomPosition(w, h),
-			1: randomPosition(w, h),
-			2: randomPosition(w, h)
-		};
+		const positions = generateRandomPositions(POLY_SIDES, w, h);
+		individual.dna[i] = new Chromosome(INITIAL_COLOR, POLY_SIDES, positions);
 	}
+	// Mutant.prototype = individual;
 	return individual;
+}
+
+function generateRandomPositions(total, w, h) {
+	const positions = [];
+	for (let i = 0; i < total; i++) {
+		positions.push(randomPosition(w, h));
+	}
+	return positions;
 }
 
 function randomPosition(w, h) {
@@ -37,45 +41,62 @@ function randomPosition(w, h) {
 }
 
 function mutate(individual, w, h) {
-	const descendant = {
-		dna: {},
-	};
-	Object.values(individual.dna).forEach((chromosome, i) => {
-		if (!shouldMutate()) {
-			return descendant.dna[i+1] = chromosome;
+	var mutant = new Mutant(individual.dna);
+  return mutant;
+}
+
+function Mutant (dna) {
+	this.dna = {};
+	for(let key in dna) {
+		let chromosome = dna[key];
+		if (chromosome.shouldMutate()) {
+			this.dna[key] = chromosome.mutate();
+		} else {
+			this.dna[key] = chromosome;
 		}
-		return descendant.dna[i+1] = mutateChromosome(chromosome);
+	}
+}
+
+function Chromosome (color, sides, positions) {
+	this.color = color;
+	this.sides = sides;
+	positions.forEach((position, i) => {
+		return this[i] = position;
 	});
-  return descendant;
 }
 
-function shouldMutate() {
-	return rnd(100) < MUTATION_PROBABILITY;
+Chromosome.prototype.shouldMutate = function (probability) {
+	if (!probability) probability = MUTATION_PROBABILITY;
+	return rnd(100) < probability; //TODO: make the mutation probability a property of Chromosome
 }
 
-function mutateChromosome (chromo) {
-	const mutation = {
-		color: mutateColor(chromo.color),
-		0: mutatePosition(chromo[0]),
-		1: mutatePosition(chromo[1]),
-		2: mutatePosition(chromo[2])
-	};
-	return Object.assign({}, chromo, mutation);
+Chromosome.prototype.mutate = function () {
+	const color = mutateColor.call(this, this.color);
+	const positions = [];
+	for (let i = 0; i < this.sides; i++) {
+		positions.push(mutatePosition.call(this, this[i]));
+	}
+	return new Chromosome(color, this.sides, positions);
 }
+
 
 function mutateColor (color) {
-	const mutation = {
-		r: rndVariation(color.r, CHROMOSOME_COLOR_DELTA),
-		g: rndVariation(color.g, CHROMOSOME_COLOR_DELTA),
-		b: rndVariation(color.b, CHROMOSOME_COLOR_DELTA),
-	};
+	const attributes = ['r', 'g', 'b'];
+	const mutation = {};
+	attributes.forEach((attribute) => {
+		if (this.shouldMutate && this.shouldMutate(100)) {
+			mutation[attribute] = rndVariation(color[attribute], CHROMOSOME_COLOR_DELTA)
+		}
+	})
 	return Object.assign({}, color, mutation);
 }
 
 function mutatePosition (position) {
-	const mutation = {
-		x: rndVariation(position.x, CHROMOSOME_MUTATION_DELTA),
-		y: rndVariation(position.y, CHROMOSOME_MUTATION_DELTA),
+	const mutation = {};
+	for (let key in position) {
+		if (this.shouldMutate && this.shouldMutate(45)) {
+			mutation[key] = rndVariation(position[key], CHROMOSOME_MUTATION_DELTA);
+		}
 	}
-	return mutation;
+	return Object.assign({}, position, mutation);
 }
